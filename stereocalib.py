@@ -197,7 +197,7 @@ def main(args:argparse.Namespace):
         # file.write("R_r", R2)
         # file.write("P_l", P1)
         # file.write("P_r", P2)
-        # file.write("Q", Q)
+        file.write("Q", Q)
         file.write("height",h)
         file.write("width",w)
         file.release()
