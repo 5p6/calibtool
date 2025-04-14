@@ -1,0 +1,17 @@
+# 单目
+root_dir: data/circle/left      # 标定图像的目录,目录下就是图像
+Camera_SensorType: Pinhole      # 支持: Pinhole, Fisheye, Omnidir
+Camera_NumType: Monocular       # 支持: Monocular, Stereo
+square_size: 0.02               # 单位距离，比如每格边长 m
+board_size: [7, 7]              # 棋盘格规格: 行数7, 列数6
+board_type: Circle              # 支持: Corner 或 Circle
+raduis_size: [5, 5] 
+criteria: [3, 100, 1e-7]        # 终止条件: cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER
+flag: 0                         # 标定标志位（opencv 标志组合）
+save_dir: ./monocircle          # 保存目录
+alpha: None
+
+#  CSV数据加载选项
+use_csv_data: false                # 是否使用CSV数据而非从图像检测角点
+image_points_dir: monocircle       # 单目：图像角点CSV文件目录，会在该文件夹下创建一个corners文件，之后保存在output/corners里。
+world_points_file: monocircle/world_coordinates.csv # 世界坐标点CSV文件
