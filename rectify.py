@@ -19,7 +19,7 @@ def main(args):
     if config.camera_num_type == "Stereo":
         cv2.imshow("right",right)
         cv2.imshow("concat",concat)
-    cv2.imwrite(Path(config.output_dir) / "concated_rectify.jpg",concat)
+        cv2.imwrite(Path(config.output_dir) / "concated_rectify.jpg",concat)
     cv2.waitKey()
     
 
@@ -27,9 +27,9 @@ def main(args):
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config","-c",default="stereo_ship.yaml")
-    parser.add_argument("--left_img","-l",default="/mnt/e/dataset/CameraCalib/StereoShip/newcalib/left/1744186012028669503.jpg")
-    parser.add_argument("--right_img","-r",default="/mnt/e/dataset/CameraCalib/StereoShip/newcalib/right/1744186012028669503.jpg")
+    parser.add_argument("--config","-c",default="config/Fisheye/mono_corner.yaml")
+    parser.add_argument("--left_img","-l",default="data/corner/left/1.jpg")
+    parser.add_argument("--right_img","-r",default="data/corner/right/1.jpg")
 
     args = parser.parse_args()
     main(args)

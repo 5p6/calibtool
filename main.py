@@ -13,6 +13,6 @@ def main(args):
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config","-c",default="./config/mono_corner.yaml")
+    parser.add_argument("--config","-c",default="config/Fisheye/mono_corner.yaml")
     args = parser.parse_args()
     main(args)

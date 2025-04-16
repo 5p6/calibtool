@@ -7,8 +7,7 @@ from .utiles import CalibrationConfig, \
                     save_corners_points,\
                     save_world_points,\
                     load_pose_file,\
-                    load_corner_from_csv,\
-                    CalibrationConfig
+                    load_corner_from_csv
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -38,14 +37,27 @@ class Camera(object):
         # 左相机
         self.cam_matrix_left = self.file.getNode("K_l").mat()
         self.distortion_l = self.file.getNode("D_l").mat()
-
+        if self.Camera_SensorType == "Omnidir":
+            self.xi_left = self.file.getNode("xi_l").mat()
+            self.Knew = np.array([[self.width/3.1415, 0, 0],
+                                      [0, self.height/3.1415, 0],
+                                      [0, 0, 1]])
+            self.omnidirflags = cv2.omnidir.RECTIFY_LONGLATI
         if self.Camera_NumType == "Stereo":
             # 右相机
             self.cam_matrix_right = self.file.getNode("K_r").mat()
             self.distortion_r = self.file.getNode("D_r").mat()
-            # 
+            if self.Camera_SensorType == "Omnidir":
+                self.xi_right = self.file.getNode("xi_r").mat()
+                if config.omnidirflag == "RECTIFY_PERSPECTIVE":
+                    self.Knew = np.array([[self.width/4, 0, self.width/2],
+                                          [0, self.height/4, self.height/2],
+                                          [0, 0, 1]])
+                    self.omnidirflags = cv2.omnidir.RECTIFY_PERSPECTIVE
+            # 外参
             self.R = self.file.getNode("R").mat()
             self.t = self.file.getNode("t").mat()
+
 
 
         # 释放
@@ -55,6 +67,9 @@ class Camera(object):
                 self.map1x, self.map1y = cv2.fisheye.initUndistortRectifyMap(self.cam_matrix_left,self.distortion_l,None,self.cam_matrix_left,(self.width, self.height),cv2.CV_32FC1)
             elif self.Camera_SensorType == "Pinhole" :
                 self.map1x, self.map1y = cv2.initUndistortRectifyMap(self.cam_matrix_left,self.distortion_l,None,self.cam_matrix_left,(self.width, self.height),cv2.CV_32FC1)
+            elif self.Camera_SensorType == "Omnidir" :
+                pass
+    
         elif self.Camera_NumType == "Stereo":
             # 畸变参数获取
             if self.Camera_SensorType == "Fisheye" :
@@ -84,7 +99,11 @@ class Camera(object):
                                                                                                         )
                 self.map1x, self.map1y = cv2.initUndistortRectifyMap(self.cam_matrix_left, self.distortion_l, self.R1, self.P1, (self.width, self.height), cv2.CV_32FC1)
                 self.map2x, self.map2y = cv2.initUndistortRectifyMap(self.cam_matrix_right, self.distortion_r, self.R2, self.P2, (self.width, self.height), cv2.CV_32FC1)
-        
+            elif self.Camera_SensorType == "Omnidir" :
+                self.R1,self.R2 = cv2.omnidir.stereoRectify(self.R, self.t)
+
+
+
     def rectify(self, left_img: np.ndarray, right_img: np.ndarray, line_interval: int = 40, colormap_name: str = "jet"):
         """
         畸变矫正+拼接+等距多彩横线可视化。
@@ -102,13 +121,19 @@ class Camera(object):
         concat_img = None
 
         if self.Camera_NumType == "Monocular":
-            left_rectified = cv2.remap(left_img, self.map1x, self.map1y, interpolation=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+            if self.Camera_SensorType == "Fisheye" or  self.Camera_SensorType == "Pinhole" : 
+                left_rectified = cv2.remap(left_img, self.map1x, self.map1y, interpolation=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+            elif self.Camera_SensorType == "Omnidir":
+                left_rectified = cv2.omnidir.undistortImage(distorted = left_img, K=self.cam_matrix_left,D=self.distortion_l,xi=self.xi_left,flags=self.omnidirflags,Knew=self.Knew) 
             right_rectified = None
 
         elif self.Camera_NumType == "Stereo":
-            left_rectified = cv2.remap(left_img, self.map1x, self.map1y, interpolation=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
-            right_rectified = cv2.remap(right_img, self.map2x, self.map2y, interpolation=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
-
+            if self.Camera_SensorType == "Fisheye" or  self.Camera_SensorType == "Pinhole" : 
+                left_rectified = cv2.remap(left_img, self.map1x, self.map1y, interpolation=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+                right_rectified = cv2.remap(right_img, self.map2x, self.map2y, interpolation=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+            elif self.Camera_SensorType == "Omnidir":
+                left_rectified = cv2.omnidir.undistortImage(distorted = left_img, K=self.cam_matrix_left,D=self.distortion_l,xi=self.xi_left,flags=self.omnidirflags,Knew=self.Knew,R=self.R1) 
+                right_rectified = cv2.omnidir.undistortImage(distorted = right_img, K=self.cam_matrix_right,D=self.distortion_r,xi=self.xi_right,flags=self.omnidirflags,Knew=self.Knew,R=self.R2) 
             # 拼接
             concat_img = np.hstack((left_rectified, right_rectified))
 
@@ -128,6 +153,7 @@ class Camera(object):
                 cv2.line(concat_img, (0, y), (concat_img.shape[1], y), color_bgr, 1)
 
         return left_rectified, right_rectified, concat_img
+    
     def compute_reprojection_errors(self):
         logger.info("输出重投影误差!")
         left_blank = np.ones((self.height,self.width,3),np.uint8)  * 255
@@ -140,22 +166,27 @@ class Camera(object):
             # 加载图像角点
             left_corners_dcit= load_corner_from_csv(csv_dir=Path(self.args.image_points_dir) / "corners")
             left_pose_dcit = load_pose_file(Path(self.args.output_dir) / "pose.txt")
-        elif self.Camera_NumType == "Stereo":
+        elif self.Camera_NumType == "Stereo" and (not self.Camera_SensorType == "Omnidir"):
             # 加载图像角点
             left_corners_dcit = load_corner_from_csv(csv_dir=Path(self.args.image_points_dir) / "left_corners")
             left_pose_dcit = load_pose_file(Path(self.args.output_dir) / "left_pose.txt")
             right_corners_dcit = load_corner_from_csv(csv_dir=Path(self.args.image_points_dir) / "right_corners")
             right_pose_dcit = load_pose_file(Path(self.args.output_dir) / "right_pose.txt")
-        
+        elif self.Camera_NumType == "Stereo" and  self.Camera_SensorType == "Omnidir": # 只有左目
+            left_corners_dcit = load_corner_from_csv(csv_dir=Path(self.args.image_points_dir) / "left_corners")
+            left_pose_dcit = load_pose_file(Path(self.args.output_dir) / "left_pose.txt")
+            
         # 加载世界点
         world_points = load_world_points_from_csv(self.args.world_points_file,len(left_corners_dcit))
         if self.Camera_NumType == "Monocular":
-            # 加载图像角点
+            # 循环计算
             for world_pts,(name, (rvec, tvec)) in zip(world_points, left_pose_dcit.items()):
                 if self.Camera_SensorType == "Pinhole":
                     image_pts_reproj, _ = cv2.projectPoints(world_pts, rvec, tvec, self.cam_matrix_left, self.distortion_l) # 投影
                 if self.Camera_SensorType == "Fisheye":
                     image_pts_reproj, _ = cv2.fisheye.projectPoints(world_pts, rvec, tvec, self.cam_matrix_left, self.distortion_l) # 投影
+                if self.Camera_SensorType == "Omnidir":
+                    image_pts_reproj, _ = cv2.omnidir.projectPoints(world_pts,rvec,tvec,self.cam_matrix_left,self.xi_left.item(),self.distortion_l)
                 image_pts_reproj = image_pts_reproj.reshape(-1,2)
                 # 计算误差
                 err = left_corners_dcit[name] - image_pts_reproj
@@ -166,33 +197,49 @@ class Camera(object):
             logger.info("单目重投影误差直方图!")
             # 单目误差显示
             self.drawMonoErrorHistogram(left_reproj_error)
-        elif self.Camera_NumType == "Stereo":
-            # 加载图像角点
-            for world_pts,(left_name, (left_rvec, left_tvec)),(right_name, (right_rvec, right_tvec)) in zip(world_points, left_pose_dcit.items(), right_pose_dcit.items()):
-                if self.Camera_SensorType == "Pinhole":
-                    left_pts_reproj, _ = cv2.projectPoints(world_pts, left_rvec, left_tvec, self.cam_matrix_left, self.distortion_l) # 投影
-                    right_pts_reproj, _ = cv2.projectPoints(world_pts, right_rvec, right_tvec, self.cam_matrix_right, self.distortion_r) # 投影
-                if self.Camera_SensorType == "Fisheye":
-                    left_pts_reproj, _ = cv2.fisheye.projectPoints(world_pts, left_rvec, left_tvec, self.cam_matrix_left, self.distortion_l) # 投影
-                    right_pts_reproj, _ = cv2.fisheye.projectPoints(world_pts, right_rvec, right_tvec, self.cam_matrix_right, self.distortion_r) # 投影
-                left_pts_reproj = left_pts_reproj.reshape(-1,2)
-                right_pts_reproj = right_pts_reproj.reshape(-1,2)
-                
-                # 计算误差
-                left_err = left_corners_dcit[left_name] - left_pts_reproj
-                right_err = right_corners_dcit[right_name] - right_pts_reproj
-                left_repro_err = np.sqrt(np.sum(left_err.flatten() ** 2) / len(left_err))   # 按行堆成1D向量
-                right_repro_err = np.sqrt(np.sum(right_err.flatten() ** 2) / len(right_err))  # 按行堆成1D向量
-                # 每个误差推入
-                left_reproj_error[left_name] = left_repro_err
-                right_reproj_error[right_name] = right_repro_err
-                # 显示
-                self.drawpoints(left_blank,left_pts_reproj,left_corners_dcit[left_name])
-                self.drawpoints(right_blank,right_pts_reproj,right_corners_dcit[right_name])
-            logger.info("双目重投影误差直方图!")
-            # 双目误差显示
-            self.drawStereoErrorHistogram((left_reproj_error,right_reproj_error))
-            cv2.imshow("right corners",right_blank)
+        elif self.Camera_NumType == "Stereo" :
+            if (not self.Camera_SensorType == "Omnidir"):
+                # 加载图像角点
+                for world_pts,(left_name, (left_rvec, left_tvec)),(right_name, (right_rvec, right_tvec)) in zip(world_points, left_pose_dcit.items(), right_pose_dcit.items()):
+                    if self.Camera_SensorType == "Pinhole":
+                        left_pts_reproj, _ = cv2.projectPoints(world_pts, left_rvec, left_tvec, self.cam_matrix_left, self.distortion_l) # 投影
+                        right_pts_reproj, _ = cv2.projectPoints(world_pts, right_rvec, right_tvec, self.cam_matrix_right, self.distortion_r) # 投影
+                    if self.Camera_SensorType == "Fisheye":
+                        left_pts_reproj, _ = cv2.fisheye.projectPoints(world_pts, left_rvec, left_tvec, self.cam_matrix_left, self.distortion_l) # 投影
+                        right_pts_reproj, _ = cv2.fisheye.projectPoints(world_pts, right_rvec, right_tvec, self.cam_matrix_right, self.distortion_r) # 投影
+                    left_pts_reproj = left_pts_reproj.reshape(-1,2)
+                    right_pts_reproj = right_pts_reproj.reshape(-1,2)
+                    
+                    # 计算误差
+                    left_err = left_corners_dcit[left_name] - left_pts_reproj
+                    right_err = right_corners_dcit[right_name] - right_pts_reproj
+                    left_repro_err = np.sqrt(np.sum(left_err.flatten() ** 2) / len(left_err))   # 按行堆成1D向量
+                    right_repro_err = np.sqrt(np.sum(right_err.flatten() ** 2) / len(right_err))  # 按行堆成1D向量
+                    # 每个误差推入
+                    left_reproj_error[left_name] = left_repro_err
+                    right_reproj_error[right_name] = right_repro_err
+                    # 显示
+                    self.drawpoints(left_blank,left_pts_reproj,left_corners_dcit[left_name])
+                    self.drawpoints(right_blank,right_pts_reproj,right_corners_dcit[right_name])    
+                logger.info("双目重投影误差直方图!")
+                # 双目误差显示
+                self.drawStereoErrorHistogram((left_reproj_error,right_reproj_error))
+                cv2.imshow("right corners",right_blank)
+            if self.Camera_NumType == "Stereo" and  self.Camera_SensorType == "Omnidir":
+                # 加载图像角点
+                for world_pts,(name, (rvec, tvec)) in zip(world_points, left_pose_dcit.items()):
+                    image_pts_reproj, _ = cv2.omnidir.projectPoints(world_pts, rvec, tvec, self.cam_matrix_left, self.xi_left.item(), self.distortion_l) # 投影
+                    image_pts_reproj = image_pts_reproj.reshape(-1,2)
+                    # 计算误差
+                    err = left_corners_dcit[name] - image_pts_reproj
+                    repro_err = np.sqrt(np.sum(err.flatten() ** 2) / len(err))  # 按行堆成1D向量
+                    left_reproj_error[name] = repro_err
+                    # 显示
+                    self.drawpoints(left_blank,image_pts_reproj,left_corners_dcit[name])
+                logger.info("Omnidir左目重投影误差直方图!")
+                # 单目误差显示
+                self.drawMonoErrorHistogram(left_reproj_error)
+
         cv2.imshow("left corners",left_blank)
         logger.info("重投影点可视化,检测角点(绿圆),重投影角点(红叉)!")
         cv2.waitKey()
@@ -259,6 +306,22 @@ class Camera(object):
         plt.tight_layout()
         plt.show()
     
-    def transformTo3D(self, disp_img: np.ndarray) -> np.ndarray:
+    def ReprojTo3d(self, disp_img: np.ndarray) -> np.ndarray:
         return cv2.reprojectImageTo3D(disp_img, self.Q)
     
+    def OmnidirReprojTo3d(self, disparity : np.ndarray):
+        baseline = np.linalg.norm(self.t)
+        f = self.Knew[0][0]
+        K_inv = np.invert(self.Knew)
+        points3d = np.zeros((self.height,self.width,3),dtype=np.float64)
+
+        for i in range(self.height):
+            for j in range(self.width):
+                depth = float(baseline * f / disparity[i][j])
+                x = float(K_inv[0][0] * j + K_inv[0][1] * i + K_inv[0][2])
+                y = float(K_inv[1][0] * j + K_inv[1][1] * i + K_inv[1][2])
+                points3d[i][j][0] = -np.cos(x) * depth              # x
+                points3d[i][j][1] = -np.sin(x) * np.cos(y) * depth  # y
+                points3d[i][j][2] = np.sin(x) * np.sin(y) * depth   # z
+
+        return points3d

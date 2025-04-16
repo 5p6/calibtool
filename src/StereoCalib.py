@@ -62,14 +62,45 @@ class StereoCameraCalibration:
         world_points, left_image_points, right_image_points = self.__load_points_from_csv()
 
         # 标定
-        retval, K_l, D_l, K_r, D_r, R, t, left_rvecs, left_tvecs, right_rvecs, right_tvecs = self.__calibAlgorithm(world_points, left_image_points, right_image_points)
-
+        if self.args.camera_sensor_type == "Pinhole" or self.args.camera_sensor_type == "Fisheye":
+            retval, K_l, D_l, K_r, D_r, R, t, left_rvecs, left_tvecs, right_rvecs, right_tvecs = self.__calibAlgorithm(world_points, left_image_points, right_image_points)
+        elif self.args.camera_sensor_type == "Omnidir":
+            retval, K_l, xi_l, D_l, K_r, xi_r, D_r, rvec, tvec, rvecsL, tvecsL, idx = self.__calibAlgorithm(world_points, left_image_points, right_image_points)
+            self.xi_l = xi_l
+            self.xi_r = xi_r
+            R, _ = cv2.Rodrigues(rvec)
+            t = tvec
+        
+        logger.info(f"双目重投影误差 error : {retval:.4f}")
+        logger.info(f"左相机内参 K_l : \n{K_l}")
+        logger.info(f"左相机内参 D_l : \n{D_l}")
+        logger.info(f"右相机内参 K_r : \n{K_r}")
+        logger.info(f"右相机内参 D_r : \n{D_r}")
+        logger.info(f"旋转矩阵 R : \n{R}")
+        logger.info(f"平移向量 t : \n{t}")
+        
         # 保存
         logger.info(f"开始保存,保存目录为: {self.args.output_dir}")
         os.makedirs(self.args.output_dir,exist_ok=True)
         self.__save_intrinsics(K_l, D_l, K_r, D_r, R, t)
-        self.__save_extrinsics(left_rvecs,left_tvecs,self.left_valid_paths,Path(self.args.output_dir) / "left_pose.txt")
-        self.__save_extrinsics(right_rvecs,right_tvecs,self.right_valid_paths,Path(self.args.output_dir) / "right_pose.txt")
+
+
+        if self.args.camera_sensor_type == "Omnidir":
+            omnidir_vaildpaths = []
+            for index in idx[0]:
+                omnidir_vaildpaths.append(self.left_valid_paths[int(index)])
+            self.__save_extrinsics(rvecsL,tvecsL,omnidir_vaildpaths,Path(self.args.output_dir) / "left_pose.txt")
+
+        if self.args.camera_sensor_type == "Pinhole" or self.args.camera_sensor_type == "Fisheye":
+            self.__save_extrinsics(left_rvecs,left_tvecs,self.left_valid_paths,Path(self.args.output_dir) / "left_pose.txt")
+            self.__save_extrinsics(right_rvecs,right_tvecs,self.right_valid_paths,Path(self.args.output_dir) / "right_pose.txt")
+        self.__save_corner_points_to_csv(left_image_points, right_image_points, world_points)
+    
+
+
+
+
+
 
     def __calibrate(self):
         self.left_valid_paths = []
@@ -111,14 +142,40 @@ class StereoCameraCalibration:
         right_points = np.array(right_points).reshape(len(right_points),1,self.args.board_size[0] * self.args.board_size[1],2)
         # 标定
         logger.info("开始标定!")
-        retval, K_l, D_l, K_r, D_r, R, t, left_rvecs, left_tvecs, right_rvecs, right_tvecs = self.__calibAlgorithm(objpoints, left_points, right_points)
 
+        # 标定
+        if self.args.camera_sensor_type == "Pinhole" or self.args.camera_sensor_type == "Fisheye":
+            retval, K_l, D_l, K_r, D_r, R, t, left_rvecs, left_tvecs, right_rvecs, right_tvecs = self.__calibAlgorithm(objpoints, left_points, right_points)
+        elif self.args.camera_sensor_type == "Omnidir":
+            retval, K_l, xi_l, D_l, K_r, xi_r, D_r, rvec, tvec, rvecsL, tvecsL, idx = self.__calibAlgorithm(objpoints, left_points, right_points)
+            self.xi_l = xi_l
+            self.xi_r = xi_r
+            R, _ = cv2.Rodrigues(rvec)
+            t = tvec
+        
+        logger.info(f"双目重投影误差 error : {retval:.4f}")
+        logger.info(f"左相机内参 K_l : \n{K_l}")
+        logger.info(f"左相机内参 D_l : \n{D_l}")
+        logger.info(f"右相机内参 K_r : \n{K_r}")
+        logger.info(f"右相机内参 D_r : \n{D_r}")
+        logger.info(f"旋转矩阵 R : \n{R}")
+        logger.info(f"平移向量 t : \n{t}")
+        
         # 保存
         logger.info(f"开始保存,保存目录为: {self.args.output_dir}")
         os.makedirs(self.args.output_dir,exist_ok=True)
         self.__save_intrinsics(K_l, D_l, K_r, D_r, R, t)
-        self.__save_extrinsics(left_rvecs,left_tvecs,self.left_valid_paths,Path(self.args.output_dir) / "left_pose.txt")
-        self.__save_extrinsics(right_rvecs,right_tvecs,self.right_valid_paths,Path(self.args.output_dir) / "right_pose.txt")
+
+
+        if self.args.camera_sensor_type == "Omnidir":
+            omnidir_vaildpaths = []
+            for index in idx[0]:
+                omnidir_vaildpaths.append(self.left_valid_paths[int(index)])
+            self.__save_extrinsics(rvecsL,tvecsL,omnidir_vaildpaths,Path(self.args.output_dir) / "left_pose.txt")
+
+        if self.args.camera_sensor_type == "Pinhole" or self.args.camera_sensor_type == "Fisheye":
+            self.__save_extrinsics(left_rvecs,left_tvecs,self.left_valid_paths,Path(self.args.output_dir) / "left_pose.txt")
+            self.__save_extrinsics(right_rvecs,right_tvecs,self.right_valid_paths,Path(self.args.output_dir) / "right_pose.txt")
         self.__save_corner_points_to_csv(left_points,right_points,objpoints)
     
     
@@ -131,7 +188,6 @@ class StereoCameraCalibration:
     
     def __calibAlgorithm(self, objpoints, left_corers, right_corners):
         logger.info("初始化左右相机内参!")
-        self.args.flag += cv2.CALIB_FIX_K3
         if self.args.camera_sensor_type == "Pinhole":
             logger.info("Pinhole calibration!")
             left_retval, K_l, D_l, left_rvecs, left_tvecs = cv2.calibrateCamera(objpoints,
@@ -179,17 +235,25 @@ class StereoCameraCalibration:
                                                                                  )
 
         elif self.args.camera_sensor_type == "Omnidir":
-            logger("该型号相机还未支持!")
-            exit()
-            # retval, cameraMatrix, xi , distCoeffs , rvecs, tvecs , idx = cv2.omnidir.calibrate(objpoints,
-            #                                                                                     imgpoints,
-            #                                                                                     self.img_size,
-            #                                                                                     K=None,
-            #                                                                                     xi=None,
-            #                                                                                     D=None,
-            #                                                                                     flags=self.args.flag,
-            #                                                                                     criteria=self.criteria
-            #                                                                                     )
+            logger.info("Omnidir calibration!")
+            left_retval, K_l, xi_l, D_l, left_rvecs, left_tvecs, left_idx = cv2.omnidir.calibrate(objpoints,
+                                                                                    left_corers,
+                                                                                    self.img_size,
+                                                                                    K=None,
+                                                                                    xi=None,
+                                                                                    D=None,
+                                                                                    flags=self.args.flag,
+                                                                                    criteria=self.criteria
+                                                                                 )
+            right_retval, K_r, xi_r, D_r, right_rvecs, right_tvecs, right_idx = cv2.omnidir.calibrate(objpoints,
+                                                                                    right_corners,
+                                                                                    self.img_size,
+                                                                                    K=None,
+                                                                                    xi=None,
+                                                                                    D=None,
+                                                                                    flags=self.args.flag,
+                                                                                    criteria=self.criteria
+                                                                                 )
         logger.info(f"左相机重投影误差 : {left_retval:.4f}")
         logger.info(f"右相机重投影误差 : {right_retval:.4f}")
         logger.info(f"初始化左相机内参 K_l : \n{K_l}")
@@ -247,16 +311,22 @@ class StereoCameraCalibration:
                 right_rvecs.append(right_rvec)
                 right_tvecs.append(right_tvec)
         elif self.args.camera_sensor_type == "Omnidir":
-            pass
-        
-        
-        logger.info(f"双目重投影误差 error : {retval:.4f}")
-        logger.info(f"左相机内参 K_l : \n{K_l}")
-        logger.info(f"左相机内参 D_l : \n{D_l}")
-        logger.info(f"右相机内参 K_r : \n{K_r}")
-        logger.info(f"右相机内参 D_r : \n{D_r}")
-        logger.info(f"旋转矩阵 R : \n{R}")
-        logger.info(f"平移向量 t : \n{t}")
+            retval, _, _, _, K_l, xi_l, D_l, K_r, xi_r, D_r, rvec, tvec, rvecsL, tvecsL, idx = cv2.omnidir.stereoCalibrate(
+                                                        objpoints,
+                                                        left_corers,
+                                                        right_corners,
+                                                        imageSize1=self.img_size,
+                                                        imageSize2=self.img_size,
+                                                        K1=K_l,
+                                                        xi1=xi_l,
+                                                        D1=D_l,
+                                                        K2=K_r,
+                                                        xi2=xi_r,
+                                                        D2=D_r,
+                                                        flags=self.args.flag,
+                                                        criteria=self.criteria
+                                                        )
+            return retval, K_l, xi_l, D_l, K_r, xi_r, D_r, rvec, tvec, rvecsL, tvecsL, idx
         return retval, K_l, D_l, K_r, D_r, R, t, left_rvecs, left_tvecs, right_rvecs, right_tvecs
     
     def __imgsize(self):
@@ -304,10 +374,14 @@ class StereoCameraCalibration:
 
         fs.write("Camera_SensorType", self.args.camera_sensor_type)
         fs.write("Camera_NumType", self.args.camera_num_type)
+
         fs.write("K_l", K_l)
         fs.write("D_l", D_l)
         fs.write("K_r", K_r)
         fs.write("D_r", D_r)
+        if self.args.camera_sensor_type == "Omnidir":
+            fs.write("xi_l",self.xi_l)
+            fs.write("xi_r",self.xi_r)
         fs.write("R", R)
         fs.write("t", t)
         fs.write("height", self.img_size[1])

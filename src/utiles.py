@@ -17,6 +17,7 @@ class CalibrationConfig:
     board_type: str
     criteria: Tuple[int, int, float]
     flag: int
+    omnidirflag : str
     radius_size: Tuple[int, int]
     output_dir : str
     use_csv_data: bool            # 是否使用CSV数据而非从图像检测角点
@@ -37,6 +38,7 @@ def parse_yaml(yaml_path: str) -> CalibrationConfig:
         board_type=config.get('board_type', 'Corner'),
         criteria=tuple(config.get('criteria', [3, 100, 1e-7])),
         flag=config.get('flag', 0),
+        omnidirflag=config.get('omnidirflag',"RECTIFY_LONGLATI" ),
         radius_size=tuple(config.get('raduis_size', [5, 5])),
         output_dir=config.get('save_dir', "./output"),
         use_csv_data=config.get("use_csv_data",False),

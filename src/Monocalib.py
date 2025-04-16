@@ -39,7 +39,11 @@ class MonocularCameraCalibration:
         world_points, image_points = self.__load_points_from_csv()
 
         # 标定
-        retval, cameraMatrix, distCoeffs, rvecs, tvecs = self.__calibAlgorithm(world_points, image_points)
+        if self.args.camera_sensor_type == "Pinhole" or self.args.camera_sensor_type == "Fisheye":
+            retval, cameraMatrix, distCoeffs, rvecs, tvecs = self.__calibAlgorithm(world_points, image_points)
+        elif self.args.camera_sensor_type == "Omnidir":
+            retval, cameraMatrix, xi , distCoeffs , rvecs, tvecs , idx = self.__calibAlgorithm(world_points, image_points)
+            self.xi = xi
 
         logger.info("标定完成")
         logger.info(f"重投影误差 e : {retval:.6f}")
@@ -50,8 +54,14 @@ class MonocularCameraCalibration:
         logger.info(f"开始保存,保存目录为: {self.args.output_dir}")
         os.makedirs(self.args.output_dir,exist_ok=True)
         self.__save_intrinsics(cameraMatrix,distCoeffs)
-        self.__save_extrinsics(rvecs,tvecs)
-        
+        if self.args.camera_sensor_type == "Omnidir":
+            omnidir_vaildpaths = []
+            for index in idx[0]:
+                omnidir_vaildpaths.append(self.valid_paths[int(index)])
+            self.__save_extrinsics(rvecs,tvecs,omnidir_vaildpaths)
+
+        if self.args.camera_sensor_type == "Pinhole" or self.args.camera_sensor_type == "Fisheye":
+            self.__save_extrinsics(rvecs,tvecs,self.valid_paths)
 
     def __calibrate(self):
         self.valid_paths = []
@@ -86,7 +96,11 @@ class MonocularCameraCalibration:
             visulizationCorner(image,corners,self.args.board_size,False) # 可视化
         logger.info("开始标定!")
         # 标定
-        retval, cameraMatrix, distCoeffs, rvecs, tvecs = self.__calibAlgorithm(objpoints, imgpoints)
+        if self.args.camera_sensor_type == "Pinhole" or self.args.camera_sensor_type == "Fisheye":
+            retval, cameraMatrix, distCoeffs, rvecs, tvecs = self.__calibAlgorithm(objpoints, imgpoints)
+        elif self.args.camera_sensor_type == "Omnidir":
+            retval, cameraMatrix, xi , distCoeffs , rvecs, tvecs , idx = self.__calibAlgorithm(objpoints, imgpoints)
+            self.xi = xi
 
         logger.info("标定完成")
         logger.info(f"重投影误差 e : {retval:.6f}")
@@ -97,7 +111,14 @@ class MonocularCameraCalibration:
         logger.info(f"开始保存,保存目录为: {self.args.output_dir}")
         os.makedirs(self.args.output_dir,exist_ok=True)
         self.__save_intrinsics(cameraMatrix,distCoeffs)
-        self.__save_extrinsics(rvecs,tvecs)
+        if self.args.camera_sensor_type == "Omnidir":
+            omnidir_vaildpaths = []
+            for index in idx[0]:
+                omnidir_vaildpaths.append(self.valid_paths[int(index)])
+            self.__save_extrinsics(rvecs,tvecs,omnidir_vaildpaths)
+
+        if self.args.camera_sensor_type == "Pinhole" or self.args.camera_sensor_type == "Fisheye":
+            self.__save_extrinsics(rvecs,tvecs,self.valid_paths)
         self.__save_corner_points_to_csv(imgpoints,objpoints)
     
     
@@ -121,6 +142,7 @@ class MonocularCameraCalibration:
                                                                                  )
         elif self.args.camera_sensor_type == "Fisheye":
             logger.info("Fisheye calibration!")
+            self.args.flag += cv2.fisheye.CALIB_FIX_SKEW
             retval, cameraMatrix, distCoeffs, rvecs, tvecs = cv2.fisheye.calibrate(objpoints,
                                                                                     imgpoints,
                                                                                     self.img_size,
@@ -132,18 +154,17 @@ class MonocularCameraCalibration:
                                                                                     criteria=self.criteria
                                                                                     )
         elif self.args.camera_sensor_type == "Omnidir":
-            logger("该型号相机还未支持!")
-            exit()
-            # logger.info("Omnidir calibration!")
-            # retval, cameraMatrix, xi , distCoeffs , rvecs, tvecs , idx = cv2.omnidir.calibrate(objpoints,
-            #                                                                                     imgpoints,
-            #                                                                                     self.img_size,
-            #                                                                                     K=None,
-            #                                                                                     xi=None,
-            #                                                                                     D=None,
-            #                                                                                     flags=self.args.flag,
-            #                                                                                     criteria=self.criteria
-            #                                                                                     )
+            logger.info("Omnidir calibration!")
+            retval, cameraMatrix, xi, distCoeffs, rvecs, tvecs, idx = cv2.omnidir.calibrate(objpoints,
+                                                                                                imgpoints,
+                                                                                                self.img_size,
+                                                                                                K=None,
+                                                                                                xi=None,
+                                                                                                D=None,
+                                                                                                flags=self.args.flag,
+                                                                                                criteria=self.criteria
+                                                                                                )
+            return retval, cameraMatrix, xi , distCoeffs , rvecs, tvecs , idx
         
         return retval, cameraMatrix, distCoeffs, rvecs, tvecs
     
@@ -153,11 +174,11 @@ class MonocularCameraCalibration:
         h,w = gray.shape[:2]
         return (w,h)
     
-    def __save_extrinsics(self, rvecs, tvecs):
+    def __save_extrinsics(self, rvecs, tvecs, valid_paths):
         save_path = Path(self.args.output_dir) / "pose.txt"  # 可改为 self.args.extrinsic_save，如果你想分开存
 
         with open(save_path, 'w', encoding='utf-8') as f:
-            for path, rvec, tvec in zip(self.valid_paths, rvecs, tvecs):
+            for path, rvec, tvec in zip(valid_paths, rvecs, tvecs):
                 name = os.path.basename(path)
                 r_str = ' '.join([f'{v:.6f}' for v in rvec.flatten()])
                 t_str = ' '.join([f'{v:.6f}' for v in tvec.flatten()])
@@ -192,7 +213,8 @@ class MonocularCameraCalibration:
         fs.write("D_l", D)
         fs.write("height", self.img_size[1])
         fs.write("width", self.img_size[0])
-
+        if self.args.camera_sensor_type == "Omnidir":
+            fs.write("xi_l",self.xi)
         fs.release()
         logger.info(f"标定结果已保存到 {save_path}")
 

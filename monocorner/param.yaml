@@ -1,0 +1,18 @@
+%YAML:1.0
+---
+Camera_SensorType: Fisheye
+Camera_NumType: Monocular
+K_l: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [ 360.41294674409113, 0., 315.76581922711841, 0.,
+       360.76831327808634, 238.62934348717263, 0., 0., 1. ]
+D_l: !!opencv-matrix
+   rows: 4
+   cols: 1
+   dt: d
+   data: [ -0.86287921390999689, 8.9860065017138933, -19.242300746103624,
+       2.8641929560492301 ]
+height: 480
+width: 640
