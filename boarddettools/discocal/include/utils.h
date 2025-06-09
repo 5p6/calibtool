@@ -86,6 +86,19 @@ public:
         return *this;
     }
 
+    CSVWriter &operator<<(std::vector<std::tuple<float, float, float>> &points)
+    {
+        // 表头
+        outFile << "world_x world_y world_z" << std::endl;
+        outFile << std::fixed << std::setprecision(6);
+        // 写入数据
+        for (auto& point : points)
+        {
+            outFile << std::get<0>(point) << " " << std::get<1>(point) << " " << std::get<2>(point) << std::endl;
+        }
+        outFile.close();
+        return *this;
+    }
 private:
     std::ofstream outFile;
 };

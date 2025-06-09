@@ -51,3 +51,11 @@ target_link_libraries(stereodet
     ${OpenCV_LIBS}
     targetDetector
 )
+
+
+
+add_executable(worldboardgen worldboardgen.cc)
+target_link_libraries(worldboardgen
+    ${OpenCV_LIBS}
+    targetDetector
+)
