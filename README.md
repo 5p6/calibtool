@@ -61,7 +61,7 @@ pip install -r requirements.txt
 * 单目（不使用csv）
 ```yaml
 root_dir: data/corner/left      # 标定图像的目录,目录下就是图像
-Camera_SensorType: Pinhole      # 支持: Pinhole, Fisheye, Omnidir
+Camera_SensorType: Pinhole      # 支持: Pinhole, Fisheye
 Camera_NumType: Monocular       # 支持: Monocular, Stereo
 square_size: 0.02               # 单位距离，比如每格边长 m
 board_size: [9, 6]              # 棋盘格规格: 行数7, 列数6
@@ -79,7 +79,7 @@ world_points_file: None # 世界坐标点CSV文件
 * 单目（使用csv）
 ```yaml
 root_dir: data/corner/left      # 标定图像的目录,目录下就是图像
-Camera_SensorType: Pinhole      # 支持: Pinhole, Fisheye, Omnidir
+Camera_SensorType: Pinhole      # 支持: Pinhole, Fisheye
 Camera_NumType: Monocular       # 支持: Monocular, Stereo
 square_size: 0.02               # 单位距离，比如每格边长 m
 board_size: [9, 6]              # 棋盘格规格: 行数7, 列数6
@@ -98,8 +98,8 @@ world_points_file: output/world_coordinates.csv # 世界坐标点CSV文件
 * 双目（不使用csv）
 
 ```yaml
-root_dir: data/corner/left      # 标定图像的目录,目录下就是图像
-Camera_SensorType: Pinhole      # 支持: Pinhole, Fisheye, Omnidir
+root_dir: data/corner      # 标定图像的目录,目录下就是图像
+Camera_SensorType: Pinhole      # 支持: Pinhole, Fisheye
 Camera_NumType: Stereo          # 支持: Monocular, Stereo
 square_size: 0.02               # 单位距离，比如每格边长 m
 board_size: [9, 6]              # 棋盘格规格: 行数7, 列数6
@@ -117,8 +117,8 @@ world_points_file: None # 世界坐标点CSV文件
 
 * 双目（使用csv）
 ```yaml
-root_dir: data/corner/left      # 标定图像的目录,目录下就是图像
-Camera_SensorType: Pinhole      # 支持: Pinhole, Fisheye, Omnidir
+root_dir: data/corner      # 标定图像的目录,目录下就是图像
+Camera_SensorType: Pinhole      # 支持: Pinhole, Fisheye
 Camera_NumType: Stereo       # 支持: Monocular, Stereo
 square_size: 0.02               # 单位距离，比如每格边长 m
 board_size: [9, 6]              # 棋盘格规格: 行数7, 列数6
