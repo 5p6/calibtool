@@ -3,3 +3,4 @@ output
 new
 .vscode
 __pycache__
+*.log
