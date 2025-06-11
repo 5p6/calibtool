@@ -8,6 +8,35 @@
 conda create -n calib python=3.10
 pip install -r requirements.txt
 ```
+
+
+
+### 2.一些说明
+#### 2.1 数据集
+* 单目
+
+```txt
+- calib
+    - xxx1.png
+    - xxx2.jpg
+    ...
+```
+
+* 双目
+```
+- calib
+    - left
+        - xxx1.png
+        - xxx2.jpg
+        ...
+    - right
+        - xxx1.png
+        - xxx2.jpg
+        ...
+```
+
+
+#### 2.2 配置文件
 采用yaml文件来配置路径和相机型号这些参数
 * root_dir: 标定图像的目录,目录下就是图像
     * 单目：该目录路径下直接就是标定图像
@@ -107,7 +136,7 @@ world_points_file: output/world_coordinates.csv # 世界坐标点CSV文件
 
 
 
-### 2.保存的说明
+### 3.保存的说明
 
 保存目录的补充说明：
 * 单目保存
@@ -169,7 +198,7 @@ world_points_file: output/world_coordinates.csv # 世界坐标点CSV文件
 * world_coordinates.csv ： 世界点csv文件路径
 
 
-### 3.使用
+### 4.使用
 
 关于配置文件，请参考config文件，自行修改。使用标定工具，直接终端运行即可
 ```shell
@@ -183,7 +212,7 @@ python main.py -h
 
 
 
-### 附录 - flag 说明
+### 附录1 - flag 说明
 
 * Pinhole 参考 https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html#gga64299f9f4e4da0dd0fda5a2fff388927a6eedf3c8312d4b29edfe0a434722e2ef
 
@@ -194,7 +223,7 @@ python main.py -h
 ![alt text](./document/image-7.png)
 
 
-### 4.标定点辅助
+### 附录2 - 标定点辅助
 
 * matlab : 见[matlabtool](./boarddettools/matlabtool/README.md)。
 * discocal : 见[discocal](./boarddettools/discocal/README.md)。

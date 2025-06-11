@@ -141,6 +141,13 @@ def load_corner_points_from_csv(image_dir, csv_dir, profix = "jpg"):
 
 
 def load_corner_from_csv(csv_dir, profix = "jpg"):
+    """
+    通过csv文件名于角点进行对应
+    corners_dict = {
+        "xxx" : corner,
+        ... 
+    }
+    """
     # 加载图像点数据
     image_names = os.listdir(csv_dir)
     corners_dict = {}
@@ -156,7 +163,7 @@ def load_corner_from_csv(csv_dir, profix = "jpg"):
                 x = float(values[0])
                 y = float(values[1])
                 points.append(np.array([x, y]))
-        corners_dict[f"{name.split('.')[0]}.{profix}"] = np.array(points, dtype=np.float32)
+        corners_dict[f"{name.split('.')[0]}"] = np.array(points, dtype=np.float32)
     return corners_dict
 
 
@@ -228,14 +235,21 @@ def save_corners_points(corner_points, valid_paths, corner_dir, board_size):
 
 
 def load_pose_file(pose_path: Path) -> dict:
-    pose_dict = {}
+    """
+    通过pose文件内部的图像名与位姿对应
+    pose_dict = {
+        "xxx" : (rvec, tvec),
+        ... 
+    }
+    """
+    poses_dict = {}
     with open(pose_path, 'r') as f:
         for line in f:
             if line.startswith("#") or line.strip() == "":
                 continue
             tokens = line.strip().split()
-            name = tokens[0]
+            name = tokens[0].split(".")[0]
             rvec = np.array([float(t) for t in tokens[1:4]], dtype=np.float64)
             tvec = np.array([float(t) for t in tokens[4:7]], dtype=np.float64)
-            pose_dict[name] = (rvec, tvec)
-    return pose_dict
+            poses_dict[name] = (rvec, tvec)
+    return poses_dict

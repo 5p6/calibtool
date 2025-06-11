@@ -27,7 +27,7 @@ class Camera(object):
     def __init__(self, config: CalibrationConfig) -> None:
         self.args = config
         logger.info("读取参数!")
-        self.file = cv2.FileStorage(Path(config.output_dir) / "param.yaml",cv2.FILE_STORAGE_READ)
+        self.file = cv2.FileStorage(str(Path(config.output_dir) / "param.yaml"),cv2.FILE_STORAGE_READ)
         # 相机型号
         self.Camera_SensorType = self.file.getNode("Camera_SensorType").string()
         self.Camera_NumType = self.file.getNode("Camera_NumType").string()
@@ -155,7 +155,9 @@ class Camera(object):
         return left_rectified, right_rectified, concat_img
     
     def compute_reprojection_errors(self):
+
         logger.info("输出重投影误差!")
+        # 白板图像，用于显示检测角点和反投影角点
         left_blank = np.ones((self.height,self.width,3),np.uint8)  * 255
         right_blank = np.ones((self.height,self.width,3),np.uint8)  * 255
         
@@ -192,6 +194,7 @@ class Camera(object):
                 err = left_corners_dcit[name] - image_pts_reproj
                 repro_err = np.sqrt(np.sum(err.flatten() ** 2) / len(err))  # 按行堆成1D向量
                 left_reproj_error[name] = repro_err
+                logger.info(f"the error of {name} : {repro_err:.3f}!")
                 # 显示
                 self.drawpoints(left_blank,image_pts_reproj,left_corners_dcit[name])
             logger.info("单目重投影误差直方图!")
@@ -209,7 +212,8 @@ class Camera(object):
                         right_pts_reproj, _ = cv2.fisheye.projectPoints(world_pts, right_rvec, right_tvec, self.cam_matrix_right, self.distortion_r) # 投影
                     left_pts_reproj = left_pts_reproj.reshape(-1,2)
                     right_pts_reproj = right_pts_reproj.reshape(-1,2)
-                    
+                    if not (left_name == right_name):
+                        continue
                     # 计算误差
                     left_err = left_corners_dcit[left_name] - left_pts_reproj
                     right_err = right_corners_dcit[right_name] - right_pts_reproj
@@ -218,6 +222,8 @@ class Camera(object):
                     # 每个误差推入
                     left_reproj_error[left_name] = left_repro_err
                     right_reproj_error[right_name] = right_repro_err
+                    
+                    logger.info(f"the error of {left_name} : {left_repro_err:.3f}(left) || {right_repro_err:.3f}(right) !")
                     # 显示
                     self.drawpoints(left_blank,left_pts_reproj,left_corners_dcit[left_name])
                     self.drawpoints(right_blank,right_pts_reproj,right_corners_dcit[right_name])    
